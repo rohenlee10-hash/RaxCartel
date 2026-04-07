@@ -4,6 +4,7 @@ from firebase_admin import credentials, firestore
 import pandas as pd
 import os
 import json
+import requests
 
 # --- Firebase init ---
 if not firebase_admin._apps:
@@ -14,6 +15,75 @@ if not firebase_admin._apps:
         cred = credentials.Certificate("serviceAccountKey.json")
     firebase_admin.initialize_app(cred)
 db = firestore.client()
+
+# --- realapp.tools API ---
+SUPABASE_URL = "https://mfsyhtuqybbxprgwwykd.supabase.co"
+TOKEN = "sb_publishable_Al7QsFGnNTlknoI8KVxjag_JUwrytZy"
+API_HEADERS = {"Authorization": f"Bearer {TOKEN}", "Content-Type": "application/json"}
+
+RARITY_NUM = {3: "Rare", 4: "Epic", 5: "Legendary", 6: "Mystic", 7: "Iconic"}
+RARITY_RATING = {"Rare": 80, "Epic": 180, "Legendary": 380, "Mystic": 1380, "Iconic": 3380}
+
+def call_api(action, payload={}):
+    try:
+        r = requests.post(
+            f"{SUPABASE_URL}/functions/v1/market-data",
+            headers=API_HEADERS,
+            json={"action": action, "payload": payload},
+            timeout=10
+        )
+        return r.json()
+    except Exception:
+        return {}
+
+@st.cache_data(ttl=300)
+def get_player_listings(entity_id, season=2026):
+    data = call_api("get_player_sales_by_entity", {"entityId": entity_id, "season": season})
+    listings = data.get("summary", {}).get("listings", [])
+    # Only live listings
+    live = [l for l in listings if not l.get("is_ended")]
+    return live
+
+@st.cache_data(ttl=60)
+def get_player_suggestions(query):
+    data = call_api("get_player_suggestions", {"query": query, "season": 2026})
+    return data.get("suggestions", [])
+
+def calc_upgrade_cost(live_listings, target_rating):
+    """Find cheapest combo of passes to reach target rating."""
+    by_rarity = {}
+    for l in live_listings:
+        r = RARITY_NUM.get(l["rarity"])
+        if r:
+            rating = l.get("value") or RARITY_RATING.get(r, 0)
+            price = l.get("bid", 0)
+            if r not in by_rarity:
+                by_rarity[r] = []
+            by_rarity[r].append({"price": price, "rating": rating})
+
+    # Sort each rarity by price per rating (cheapest first)
+    for r in by_rarity:
+        by_rarity[r].sort(key=lambda x: x["price"] / max(x["rating"], 1))
+
+    # Greedy: fill rating using cheapest passes
+    total_cost = 0
+    total_rating = 0
+    passes_used = []
+
+    all_passes = []
+    for r, passes in by_rarity.items():
+        for p in passes:
+            all_passes.append({**p, "rarity": r})
+    all_passes.sort(key=lambda x: x["price"] / max(x["rating"], 1))
+
+    for p in all_passes:
+        if total_rating >= target_rating:
+            break
+        total_cost += p["price"]
+        total_rating += p["rating"]
+        passes_used.append(p)
+
+    return total_cost, total_rating, passes_used
 
 # --- Page config ---
 st.set_page_config(page_title="RaxCartel", page_icon="💰", layout="wide")
@@ -329,3 +399,104 @@ else:
     st.markdown("<div style='color:#555; padding:20px;'>No flip opportunities found right now. Check back soon.</div>", unsafe_allow_html=True)
 
 st.markdown("<br><div style='text-align:center; color:#333; font-size:0.75rem;'>RaxCartel · Data from realapp.tools · Refreshes every 30s</div>", unsafe_allow_html=True)
+
+# ─────────────────────────────────────────────
+# UPGRADE CALCULATOR
+# ─────────────────────────────────────────────
+st.markdown("<br>", unsafe_allow_html=True)
+st.markdown("""
+<div style='font-size:1.3rem; font-weight:800; color:#ffffff; margin-bottom:4px;'>
+    ⚡ Upgrade Calculator
+</div>
+<div style='color:#666; font-size:0.85rem; margin-bottom:16px;'>
+    Search any player — see if it's cheaper to grind Rares or just buy the target rarity directly.
+</div>
+""", unsafe_allow_html=True)
+
+search_col, target_col = st.columns([3, 1])
+with search_col:
+    player_search = st.text_input("Search player", placeholder="e.g. LeBron James", key="upgrade_search")
+with target_col:
+    target_rarity = st.selectbox("Target", ["Legendary", "Mystic", "Iconic"], key="upgrade_target")
+
+if player_search:
+    suggestions = get_player_suggestions(player_search)
+    if not suggestions:
+        st.warning("No players found.")
+    else:
+        player_options = {f"{s['name']} ({s.get('sport','').upper()})": s for s in suggestions[:10]}
+        selected = st.selectbox("Select player", list(player_options.keys()), key="upgrade_player")
+        player = player_options[selected]
+        entity_id = player["entityId"]
+        season = player.get("season", 2026)
+
+        with st.spinner("Fetching live listings..."):
+            live = get_player_listings(entity_id, season)
+
+        target_rating = RARITY_RATING[target_rarity]
+
+        # Floor price of target rarity directly
+        target_rarity_num = {v: k for k, v in RARITY_NUM.items()}.get(target_rarity)
+        direct_listings = sorted(
+            [l for l in live if l.get("rarity") == target_rarity_num],
+            key=lambda x: x.get("bid", 999999)
+        )
+        direct_price = direct_listings[0]["bid"] if direct_listings else None
+
+        # Cost to grind using cheaper passes
+        grind_cost, grind_rating, passes_used = calc_upgrade_cost(
+            [l for l in live if l.get("rarity", 99) < target_rarity_num] if target_rarity_num else [],
+            target_rating
+        )
+
+        # Show comparison
+        c1, c2 = st.columns(2)
+        with c1:
+            if direct_price:
+                st.markdown(f"""
+                <div style='background:#1a1a2e; border:1px solid #4488ff; border-radius:12px; padding:20px; text-align:center;'>
+                    <div style='color:#888; font-size:0.8rem; text-transform:uppercase;'>Buy {target_rarity} Directly</div>
+                    <div style='font-size:2rem; font-weight:900; color:#4488ff; margin:8px 0;'>{direct_price:,} RAX</div>
+                    <div style='color:#555; font-size:0.75rem;'>Floor price on market</div>
+                </div>
+                """, unsafe_allow_html=True)
+            else:
+                st.markdown(f"""
+                <div style='background:#1a1a2e; border:1px solid #333; border-radius:12px; padding:20px; text-align:center;'>
+                    <div style='color:#555;'>No {target_rarity} listed right now</div>
+                </div>
+                """, unsafe_allow_html=True)
+
+        with c2:
+            if passes_used:
+                cheaper = direct_price and grind_cost < direct_price
+                border = "#00ff88" if cheaper else "#ff4444"
+                label = "CHEAPER TO GRIND ✅" if cheaper else "CHEAPER TO BUY DIRECT ❌"
+                savings = direct_price - grind_cost if direct_price else 0
+                st.markdown(f"""
+                <div style='background:#0a1a0a; border:1px solid {border}; border-radius:12px; padding:20px; text-align:center;'>
+                    <div style='color:#888; font-size:0.8rem; text-transform:uppercase;'>Grind with Cheaper Passes</div>
+                    <div style='font-size:2rem; font-weight:900; color:{border}; margin:8px 0;'>{grind_cost:,} RAX</div>
+                    <div style='color:#aaa; font-size:0.8rem; font-weight:700;'>{label}</div>
+                    {"<div style='color:#00ff88; font-size:0.85rem; margin-top:4px;'>Save " + f"{savings:,} RAX</div>" if cheaper and savings > 0 else ""}
+                </div>
+                """, unsafe_allow_html=True)
+            else:
+                st.markdown("""
+                <div style='background:#1a1a2e; border:1px solid #333; border-radius:12px; padding:20px; text-align:center;'>
+                    <div style='color:#555;'>Not enough passes listed to grind</div>
+                </div>
+                """, unsafe_allow_html=True)
+
+        # Show all live listings
+        if live:
+            st.markdown(f"<br><div style='color:#888; font-size:0.85rem;'>{len(live)} live listings for {player['playerName']}</div>", unsafe_allow_html=True)
+            rows = []
+            for l in sorted(live, key=lambda x: x.get("bid", 0)):
+                rows.append({
+                    "Rarity": RARITY_NUM.get(l.get("rarity"), "?"),
+                    "Price (RAX)": l.get("bid", 0),
+                    "Rating": round(l.get("value", 0), 1),
+                    "RAX/Rating": round(l.get("rax_per_rating", 0), 2),
+                })
+            st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
