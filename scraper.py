@@ -39,6 +39,38 @@ RAX_EARNINGS = {
     "Mystic": 37500, "Iconic": 999999
 }
 
+# Top golf players to search for
+GOLF_PLAYERS = [
+    "Scottie Scheffler", "Rory McIlroy", "Jon Rahm", "Xander Schauffele",
+    "Collin Morikawa", "Viktor Hovland", "Patrick Cantlay", "Tony Finau",
+    "Justin Thomas", "Jordan Spieth", "Dustin Johnson", "Brooks Koepka",
+    "Bryson DeChambeau", "Tommy Fleetwood", "Shane Lowry", "Matt Fitzpatrick",
+    "Hideki Matsuyama", "Max Homa", "Keegan Bradley", "Wyndham Clark",
+    "Sahith Theegala", "Ludvig Aberg", "Akshay Bhatia", "Si Woo Kim",
+    "Jake Knapp", "Sungjae Im", "Tom Kim", "Chris Kirk", "Adam Scott",
+    "Jason Day", "Rickie Fowler", "Billy Horschel", "Sepp Straka",
+    "Corey Conners", "Kurt Kitayama", "Harris English", "Denny McCarthy",
+    "Taylor Moore", "Eric Cole", "Davis Thompson", "Nick Taylor",
+    "Mackenzie Hughes", "Adam Hadwin", "Aaron Rai", "Thriston Lawrence",
+    "Christiaan Bezuidenhout", "Dean Burmester", "Rasmus Hojgaard",
+    "Nicolai Hojgaard", "Adrian Meronk", "Tyrrell Hatton", "Robert MacIntyre",
+    "Min Woo Lee", "Cam Davis", "Lucas Herbert", "Marc Leishman",
+    "Cameron Smith", "Jason Kokrak", "Kevin Na", "Harold Varner",
+    "Talor Gooch", "Patrick Reed", "Bubba Watson", "Webb Simpson",
+    "Zach Johnson", "Stewart Cink", "Kevin Kisner", "Brian Harman",
+    "Luke List", "Brendan Steele", "Scott Stallings", "Joel Dahmen",
+    "Beau Hossler", "Chesson Hadley", "Nate Lashley", "Ryan Armour",
+    "Chez Reavie", "Scott Brown", "Patton Kizzire", "Richy Werenski",
+    "Charley Hoffman", "Kevin Streelman", "Vaughn Taylor", "Jim Herman",
+    "Emiliano Grillo", "Sebastián Muñoz", "Camilo Villegas", "Roberto Díaz",
+    "Carlos Ortiz", "Abraham Ancer", "Jhonattan Vegas", "Mito Pereira",
+    "Joaquin Niemann", "Cristobal Del Solar", "Rafa Cabrera Bello",
+    "Adri Arnaus", "Jorge Campillo", "Pablo Larrazabal", "Nacho Elvira",
+    "Matthias Schwab", "Bernd Wiesberger", "Martin Kaymer", "Alex Noren",
+    "Henrik Stenson", "Ian Poulter", "Lee Westwood", "Paul Casey",
+    "Graeme McDowell", "Padraig Harrington", "Sergio Garcia"
+]
+
 
 def send_email_alert(buy_signals):
     """Sends an email with the top buy signals."""
@@ -98,6 +130,58 @@ def fetch_steals(season=2026):
     cards = data.get("cards", [])
     print(f"  Got {len(cards)} steal cards.")
     return cards
+
+
+def fetch_golf_players(season=2026):
+    """Searches for 100+ golf players by name and fetches their market data."""
+    print(f"\nFetching golf players...")
+    golf_cards = []
+    seen_ids = set()
+
+    for name in GOLF_PLAYERS:
+        try:
+            data = call_api("get_player_suggestions", {"query": name.split()[0], "season": season})
+            suggestions = data.get("suggestions", [])
+            golf = [s for s in suggestions if s.get("sport", "").lower() == "golf"]
+            for player in golf:
+                eid = player.get("entityId")
+                if eid in seen_ids:
+                    continue
+                seen_ids.add(eid)
+                # Get sales data for this player
+                sales = call_api("get_player_sales_by_entity", {"entityId": eid, "season": season})
+                summary = sales.get("summary", {})
+                p = summary.get("player", {})
+                listings = summary.get("listings", [])
+                live = [l for l in listings if not l.get("is_ended")]
+                if not live:
+                    continue
+                # Get cheapest live listing
+                cheapest = min(live, key=lambda x: x.get("bid", 999999))
+                rarity_map = {3: "Rare", 4: "Epic", 5: "Legendary", 6: "Mystic", 7: "Iconic"}
+                rarity = rarity_map.get(cheapest.get("rarity"), "Rare")
+                price = cheapest.get("bid", 0)
+                rr = p.get("avg_rax_per_rating", 0)
+
+                golf_cards.append({
+                    "playerName": player.get("name", name),
+                    "sport": "golf",
+                    "season": season,
+                    "entityId": eid,
+                    "rarityLabel": rarity,
+                    "listingPrice": price,
+                    "currentRr": rr,
+                    "avgRr": rr,
+                    "fairValue": round(price * 1.2),
+                    "trendingScore": 50,
+                    "valuationStatus": "unknown",
+                })
+                print(f"  {player.get('name', name):<30} {rarity:<10} {price:>6,} RAX")
+        except Exception as e:
+            continue
+
+    print(f"\nTotal golf players found: {len(golf_cards)}")
+    return golf_cards
 
 
 def save_players(cards):
@@ -175,13 +259,22 @@ def main():
     all_cards = []
     homepage = fetch_players(season)
     steals = fetch_steals(season)
+    golf = fetch_golf_players(season)
 
-    # Merge, deduplicate by listingId
+    # Merge, deduplicate by listingId or playerName+rarity
     seen = set()
     for c in homepage + steals:
         lid = c.get("listingId")
         if lid not in seen:
             seen.add(lid)
+            all_cards.append(c)
+
+    # Add golf players (dedup by name+rarity)
+    existing_keys = {f"{c.get('playerName')}_{c.get('rarityLabel')}_{c.get('season')}" for c in all_cards}
+    for c in golf:
+        key = f"{c.get('playerName')}_{c.get('rarityLabel')}_{c.get('season')}"
+        if key not in existing_keys:
+            existing_keys.add(key)
             all_cards.append(c)
 
     print(f"\nTotal unique cards: {len(all_cards)}")
