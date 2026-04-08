@@ -190,8 +190,8 @@ tab_golf, tab_nba, tab_mlb, tab_all, tab_flip, tab_calc = st.tabs([
 ])
 
 def rarity_color(r):
-    return {"General":"#aaa","Common":"#fff","Uncommon":"#00cc44","Rare":"#4488ff",
-            "Epic":"#aa44ff","Legendary":"#ffaa00","Mystic":"#ff4488","Iconic":"#ff2200"}.get(r, "#fff")
+    return {"General":"#aaa","Common":"#fff","Uncommon":"#00cc44","Rare":"#ff8800",
+            "Epic":"#ff3333","Legendary":"#aa44ff","Mystic":"#ffaa00","Iconic":"#ff44aa"}.get(r, "#fff")
 
 def deal_label(score):
     if score >= 60: return ("BUY", "#00ff88")
