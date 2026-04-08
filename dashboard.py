@@ -185,8 +185,8 @@ for col, val, label in [
 st.markdown("<br>", unsafe_allow_html=True)
 
 # --- Sport tabs ---
-tab_golf, tab_nba, tab_mlb, tab_all, tab_flip, tab_calc = st.tabs([
-    "⛳ Golf", "🏀 NBA", "⚾ MLB", "🌐 All", "💸 Flip Opportunities", "⚡ Upgrade Calculator"
+tab_golf, tab_nba, tab_mlb, tab_all, tab_flip, tab_picks, tab_boost, tab_calc = st.tabs([
+    "⛳ Golf", "🏀 NBA", "⚾ MLB", "🌐 All", "💸 Flip Opportunities", "🎯 Daily Picks", "🚀 Boosters & Packs", "⚡ Upgrade Calculator"
 ])
 
 def rarity_color(r):
@@ -206,15 +206,14 @@ def render_players(data, tab_key="default"):
 
     col_f1, col_f2 = st.columns([2, 2])
     with col_f1:
-        sort_by = st.selectbox("Sort by", ["Deal Score", "Buy Price", "Flip Profit"], key=f"sort_{tab_key}")
+        sort_by = st.selectbox("Sort by", ["Value Rating", "Buy Price", "Flip Profit"], key=f"sort_{tab_key}")
     with col_f2:
         search = st.text_input("Search", placeholder="Player name...", key=f"search_{tab_key}")
 
     if search:
         data = data[data['name'].str.contains(search, case=False, na=False)]
 
-    sort_map = {"Deal Score": "deal_score", "Buy Price": "buy_price", "Flip Profit": "flip_profit"}
-    sc = sort_map.get(sort_by, "deal_score")
+    sort_map = {"Value Rating": "deal_score", "Buy Price": "buy_price", "Flip Profit": "flip_profit"}    sc = sort_map.get(sort_by, "deal_score")
     if sc in data.columns:
         data = data.sort_values(sc, ascending=False, na_position='last')
 
@@ -256,7 +255,7 @@ def render_players(data, tab_key="default"):
                 </div>
                 <div style='text-align:right;'>
                     <div style='font-size:1.4rem; font-weight:900; color:{dcolor};'>{dlabel}</div>
-                    <div style='font-size:0.75rem; color:#2a4a2a;'>Deal {deal_score}/95</div>
+                    <div style='font-size:0.75rem; color:#2a4a2a;'>Value Rating {deal_score}/95</div>
                 </div>
             </div>
             <div class='player-stats'>
@@ -337,6 +336,302 @@ with tab_flip:
             </div>
             """, unsafe_allow_html=True)
 
+with tab_picks:
+    st.markdown("""
+    <div style='font-size:1.1rem; font-weight:800; color:#fff; margin-bottom:4px;'>🎯 Daily Karma Picks</div>
+    <div style='color:#4a8b4a; font-size:0.85rem; margin-bottom:16px;'>
+        Who to pick in today's polls to maximize karma. Remember: picking the <b style='color:#ffaa00;'>least popular player who wins</b> earns the most karma (up to 100).
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Daily karma checklist
+    st.markdown("""
+    <div style='background:#0d1a0d; border:1px solid #1a3a1a; border-radius:12px; padding:16px; margin-bottom:20px;'>
+        <div style='font-weight:700; color:#fff; margin-bottom:10px;'>✅ Daily Karma Checklist</div>
+        <div style='display:grid; grid-template-columns:1fr 1fr; gap:8px; font-size:0.85rem;'>
+            <div style='color:#aaa;'>📺 View live game feed <span style='color:#00ff88;'>+10 karma</span></div>
+            <div style='color:#aaa;'>💬 Leave one comment <span style='color:#00ff88;'>+10 karma</span></div>
+            <div style='color:#aaa;'>👍 React to a play/performance <span style='color:#00ff88;'>+10 karma</span></div>
+            <div style='color:#aaa;'>🏆 Vote for Game of the Day <span style='color:#00ff88;'>+20 karma/sport</span></div>
+            <div style='color:#aaa;'>📊 Pre-game spread poll <span style='color:#00ff88;'>+10-100 karma</span></div>
+            <div style='color:#aaa;'>🌟 Pre-game player poll <span style='color:#00ff88;'>+10-100 karma</span></div>
+        </div>
+        <div style='margin-top:10px; padding:8px; background:#0a2a0a; border-radius:8px; font-size:0.8rem; color:#ffaa00;'>
+            💡 Pro tip: In player polls, pick the player you think will score most BUT who has fewer votes — the less popular the winner, the more karma you earn.
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    picks_sport = st.selectbox("Sport", ["NBA", "MLB"], key="picks_sport")
+
+    @st.cache_data(ttl=1800)
+    def get_nba_games_today():
+        from datetime import datetime
+        today = datetime.now().strftime("%Y-%m-%d")
+        try:
+            resp = requests.get(
+                "https://api.balldontlie.io/v1/games",
+                headers={"Authorization": "b6d8fdb5-19e6-42ec-8cf2-90ff63cce84b"},
+                params={"dates[]": today, "per_page": 20},
+                timeout=8
+            )
+            return resp.json().get("data", [])
+        except Exception:
+            return []
+
+    @st.cache_data(ttl=1800)
+    def get_mlb_games_today():
+        from datetime import datetime
+        today = datetime.now().strftime("%Y-%m-%d")
+        try:
+            resp = requests.get(
+                "https://statsapi.mlb.com/api/v1/schedule",
+                params={"sportId": 1, "date": today, "hydrate": "probablePitcher,team"},
+                timeout=8
+            )
+            dates = resp.json().get("dates", [])
+            return dates[0].get("games", []) if dates else []
+        except Exception:
+            return []
+
+    @st.cache_data(ttl=3600)
+    def get_mlb_top_hitters():
+        try:
+            resp = requests.get(
+                "https://statsapi.mlb.com/api/v1/stats/leaders",
+                params={"leaderCategories": "homeRuns,battingAverage,rbi", "season": 2025, "limit": 20},
+                timeout=8
+            )
+            return resp.json().get("leagueLeaders", [])
+        except Exception:
+            return []
+
+    if picks_sport == "NBA":
+        games = get_nba_games_today()
+        if not games:
+            st.info("No NBA games today or API unavailable.")
+        else:
+            st.markdown(f"<div style='color:#4a8b4a; font-size:0.85rem; margin-bottom:12px;'>{len(games)} NBA games today</div>", unsafe_allow_html=True)
+            for g in games:
+                home = g["home_team"]["full_name"]
+                away = g["visitor_team"]["full_name"]
+                time_str = g.get("status", "")[:16].replace("T", " ").replace("Z", " UTC") if "T" in str(g.get("status","")) else g.get("status","")
+                st.markdown(f"""
+                <div style='background:#0d1a0d; border:1px solid #1a3a1a; border-radius:10px; padding:14px; margin-bottom:8px;'>
+                    <div style='font-weight:700; color:#fff; font-size:1rem;'>🏀 {away} @ {home}</div>
+                    <div style='color:#4a8b4a; font-size:0.8rem; margin-top:4px;'>🕐 {time_str}</div>
+                    <div style='margin-top:10px; padding:8px; background:#0a1a0a; border-radius:6px; font-size:0.8rem; color:#ffaa00;'>
+                        💡 For the player poll: pick a star player from the favored team who is likely to score 25+ pts but may not be the most popular pick (e.g. not LeBron/Curry — try their teammate).
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+
+    else:  # MLB
+        games = get_mlb_games_today()
+        if not games:
+            st.info("No MLB games today.")
+        else:
+            st.markdown(f"<div style='color:#4a8b4a; font-size:0.85rem; margin-bottom:12px;'>{len(games)} MLB games today</div>", unsafe_allow_html=True)
+            for g in games:
+                away = g["teams"]["away"]["team"]["name"]
+                home = g["teams"]["home"]["team"]["name"]
+                away_pitcher = g["teams"]["away"].get("probablePitcher", {}).get("fullName", "TBD")
+                home_pitcher = g["teams"]["home"].get("probablePitcher", {}).get("fullName", "TBD")
+                game_time = g.get("gameDate", "")[:16].replace("T", " ") + " UTC"
+                st.markdown(f"""
+                <div style='background:#0d1a0d; border:1px solid #1a3a1a; border-radius:10px; padding:14px; margin-bottom:8px;'>
+                    <div style='font-weight:700; color:#fff; font-size:1rem;'>⚾ {away} @ {home}</div>
+                    <div style='color:#4a8b4a; font-size:0.8rem; margin-top:4px;'>🕐 {game_time}</div>
+                    <div style='display:flex; gap:20px; margin-top:8px; font-size:0.82rem;'>
+                        <div><span style='color:#888;'>Away SP:</span> <span style='color:#fff;'>{away_pitcher}</span></div>
+                        <div><span style='color:#888;'>Home SP:</span> <span style='color:#fff;'>{home_pitcher}</span></div>
+                    </div>
+                    <div style='margin-top:10px; padding:8px; background:#0a1a0a; border-radius:6px; font-size:0.8rem; color:#ffaa00;'>
+                        💡 For player poll: pick a power hitter facing a weak pitcher. Avoid the most obvious pick (Judge/Ohtani) — go for their teammate for more karma.
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+
+    st.markdown("""
+    <div style='background:#1a1a0a; border:1px solid #3a3a1a; border-radius:10px; padding:14px; margin-top:8px;'>
+        <div style='font-weight:700; color:#ffaa00; margin-bottom:8px;'>📈 Karma Poll Strategy</div>
+        <div style='font-size:0.82rem; color:#aaa; line-height:1.6;'>
+            • <b style='color:#fff;'>Spread polls:</b> Pick the favored team — they cover more often<br>
+            • <b style='color:#fff;'>Player polls:</b> The LEAST voted winner gives the MOST karma (up to 100)<br>
+            • <b style='color:#fff;'>Best play:</b> Pick a star player's teammate who is likely to have a big game<br>
+            • <b style='color:#fff;'>Wager karma:</b> Only wager on games you're confident about — you can lose it<br>
+            • <b style='color:#fff;'>In-game polls:</b> Answer every single one — they add up fast (+5 to +50 each)
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+with tab_boost:
+    st.markdown("""
+    <div style='font-size:1.1rem; font-weight:800; color:#fff; margin-bottom:4px;'>🚀 Boosters & Pack Timing</div>
+    <div style='color:#4a8b4a; font-size:0.85rem; margin-bottom:16px;'>
+        When to open packs, which booster to use, and who to boost today.
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Pack reset countdown
+    from datetime import datetime, timezone, timedelta
+    now_utc = datetime.now(timezone.utc)
+    reset_hour = 15  # 10am EST = 15:00 UTC
+    reset_today = now_utc.replace(hour=reset_hour, minute=0, second=0, microsecond=0)
+    if now_utc > reset_today:
+        reset_today += timedelta(days=1)
+    time_left = reset_today - now_utc
+    hours_left = int(time_left.total_seconds() // 3600)
+    mins_left = int((time_left.total_seconds() % 3600) // 60)
+
+    st.markdown(f"""
+    <div style='background:#0d1a0d; border:1px solid #2d8b2d; border-radius:12px; padding:16px; margin-bottom:20px;'>
+        <div style='font-weight:700; color:#fff; font-size:1rem; margin-bottom:12px;'>⏰ Pack Reset Timer</div>
+        <div style='display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; text-align:center;'>
+            <div style='background:#0a1a0a; border-radius:8px; padding:12px;'>
+                <div style='font-size:1.5rem; font-weight:900; color:#00ff88;'>{hours_left}h {mins_left}m</div>
+                <div style='color:#888; font-size:0.75rem;'>Until next reset</div>
+            </div>
+            <div style='background:#0a1a0a; border-radius:8px; padding:12px;'>
+                <div style='font-size:1.5rem; font-weight:900; color:#ffaa00;'>10am EST</div>
+                <div style='color:#888; font-size:0.75rem;'>Daily reset time</div>
+            </div>
+            <div style='background:#0a1a0a; border-radius:8px; padding:12px;'>
+                <div style='font-size:1.5rem; font-weight:900; color:#ff4488;'>2,000</div>
+                <div style='color:#888; font-size:0.75rem;'>Yesterday packs (grab fast)</div>
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Daily pack limits
+    st.markdown("""
+    <div style='background:#0d1a0d; border:1px solid #1a3a1a; border-radius:12px; padding:16px; margin-bottom:20px;'>
+        <div style='font-weight:700; color:#fff; margin-bottom:10px;'>📦 Daily Pack Limits</div>
+        <div style='display:grid; grid-template-columns:1fr 1fr; gap:8px; font-size:0.85rem;'>
+            <div style='background:#0a1a0a; border-radius:8px; padding:10px;'>
+                <div style='color:#fff; font-weight:600;'>Starter Pack — 100 RAX</div>
+                <div style='color:#888; font-size:0.78rem; margin-top:4px;'>3 plays + 1 Common/Uncommon booster · 3/day</div>
+            </div>
+            <div style='background:#0a1a0a; border-radius:8px; padding:10px;'>
+                <div style='color:#fff; font-weight:600;'>General Pack — 200 RAX</div>
+                <div style='color:#888; font-size:0.78rem; margin-top:4px;'>5 plays + 1 Rare/Epic/Legendary booster · 5/day</div>
+            </div>
+            <div style='background:#0a1a0a; border-radius:8px; padding:10px;'>
+                <div style='color:#ffaa00; font-weight:600;'>Yesterday Pack — 250 RAX ⚡</div>
+                <div style='color:#888; font-size:0.78rem; margin-top:4px;'>5 yesterday plays + booster · 3/day · Only 2,000 available</div>
+            </div>
+            <div style='background:#0a1a0a; border-radius:8px; padding:10px;'>
+                <div style='color:#fff; font-weight:600;'>Player/Team Pack</div>
+                <div style='color:#888; font-size:0.78rem; margin-top:4px;'>Targeted plays for specific player/team</div>
+            </div>
+        </div>
+        <div style='margin-top:10px; padding:8px; background:#1a1a0a; border-radius:8px; font-size:0.8rem; color:#ffaa00;'>
+            💡 Open Yesterday packs RIGHT at 10am EST — they sell out fast. Set an alarm.
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Booster tiers and RAX values
+    st.markdown("""
+    <div style='background:#0d1a0d; border:1px solid #1a3a1a; border-radius:12px; padding:16px; margin-bottom:20px;'>
+        <div style='font-weight:700; color:#fff; margin-bottom:10px;'>⚡ Booster Card Tiers</div>
+        <div style='font-size:0.8rem; color:#888; margin-bottom:10px;'>Example: NBA 3-pointer booster RAX per made 3</div>
+        <div style='display:flex; flex-direction:column; gap:6px;'>
+            <div style='display:flex; justify-content:space-between; background:#0a1a0a; border-radius:6px; padding:8px 12px;'>
+                <span style='color:#aaa; font-weight:600;'>Common</span>
+                <span style='color:#aaa;'>~5 RAX per stat</span>
+                <span style='color:#888; font-size:0.75rem;'>From Starter packs</span>
+            </div>
+            <div style='display:flex; justify-content:space-between; background:#0a1a0a; border-radius:6px; padding:8px 12px;'>
+                <span style='color:#00cc44; font-weight:600;'>Uncommon</span>
+                <span style='color:#00cc44;'>~8 RAX per stat</span>
+                <span style='color:#888; font-size:0.75rem;'>From Starter packs</span>
+            </div>
+            <div style='display:flex; justify-content:space-between; background:#0a1a0a; border-radius:6px; padding:8px 12px;'>
+                <span style='color:#ff8800; font-weight:600;'>Rare</span>
+                <span style='color:#ff8800;'>~12 RAX per stat</span>
+                <span style='color:#888; font-size:0.75rem;'>From General/Yesterday packs</span>
+            </div>
+            <div style='display:flex; justify-content:space-between; background:#0a1a0a; border-radius:6px; padding:8px 12px;'>
+                <span style='color:#ff3333; font-weight:600;'>Epic</span>
+                <span style='color:#ff3333;'>~15 RAX per stat</span>
+                <span style='color:#888; font-size:0.75rem;'>From General/Yesterday packs</span>
+            </div>
+            <div style='display:flex; justify-content:space-between; background:#0a1a0a; border-radius:6px; padding:8px 12px;'>
+                <span style='color:#aa44ff; font-weight:600;'>Legendary</span>
+                <span style='color:#aa44ff;'>~20 RAX per stat</span>
+                <span style='color:#888; font-size:0.75rem;'>From General/Yesterday packs</span>
+            </div>
+            <div style='display:flex; justify-content:space-between; background:#0a1a0a; border-radius:6px; padding:8px 12px;'>
+                <span style='color:#ffaa00; font-weight:600;'>Mystic</span>
+                <span style='color:#ffaa00;'>~30 RAX per stat</span>
+                <span style='color:#888; font-size:0.75rem;'>Rare drop</span>
+            </div>
+            <div style='display:flex; justify-content:space-between; background:#0a1a0a; border-radius:6px; padding:8px 12px;'>
+                <span style='color:#ff44aa; font-weight:600;'>Iconic</span>
+                <span style='color:#ff44aa;'>~50+ RAX per stat</span>
+                <span style='color:#888; font-size:0.75rem;'>Very rare drop</span>
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Who to boost today
+    st.markdown("""
+    <div style='font-weight:700; color:#fff; margin-bottom:10px;'>🎯 Who to Boost Today</div>
+    <div style='color:#4a8b4a; font-size:0.85rem; margin-bottom:12px;'>
+        Use your best booster on the player most likely to rack up the boosted stat today.
+        Apply before their game starts — boosters expire after the game.
+    </div>
+    """, unsafe_allow_html=True)
+
+    boost_sport = st.selectbox("Sport", ["NBA", "MLB"], key="boost_sport")
+
+    if boost_sport == "NBA":
+        nba_games = get_nba_games_today() if 'get_nba_games_today' in dir() else []
+        if not nba_games:
+            st.info("No NBA games today or API unavailable.")
+        else:
+            st.markdown(f"""
+            <div style='background:#0a1a0a; border:1px solid #1a3a1a; border-radius:10px; padding:14px;'>
+                <div style='color:#fff; font-weight:700; margin-bottom:8px;'>Today's NBA Games ({len(nba_games)} games)</div>
+                <div style='font-size:0.82rem; color:#aaa; line-height:1.8;'>
+                    {'<br>'.join([f"🏀 {g['visitor_team']['full_name']} @ {g['home_team']['full_name']}" for g in nba_games])}
+                </div>
+                <div style='margin-top:12px; padding:8px; background:#1a1a0a; border-radius:6px; font-size:0.8rem;'>
+                    <div style='color:#ffaa00; font-weight:700; margin-bottom:6px;'>Best booster targets by stat:</div>
+                    <div style='color:#aaa;'>🎯 3PT booster → Pick a high-volume 3pt shooter (Curry, Trae, Lillard)</div>
+                    <div style='color:#aaa;'>🏀 Points booster → Pick the highest scorer in a high-total game</div>
+                    <div style='color:#aaa;'>🔄 Assists booster → Pick a pass-first PG (Haliburton, Brunson, SGA)</div>
+                    <div style='color:#aaa;'>💪 Rebounds booster → Pick a big in a fast-paced game (Jokic, Embiid, Gobert)</div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+    else:
+        mlb_games = get_mlb_games_today() if 'get_mlb_games_today' in dir() else []
+        if not mlb_games:
+            st.info("No MLB games today.")
+        else:
+            st.markdown("<div style='display:flex; flex-direction:column; gap:8px;'>", unsafe_allow_html=True)
+            for g in mlb_games[:8]:
+                away = g["teams"]["away"]["team"]["name"]
+                home = g["teams"]["home"]["team"]["name"]
+                away_p = g["teams"]["away"].get("probablePitcher", {}).get("fullName", "TBD")
+                home_p = g["teams"]["home"].get("probablePitcher", {}).get("fullName", "TBD")
+                st.markdown(f"""
+                <div style='background:#0a1a0a; border:1px solid #1a3a1a; border-radius:10px; padding:12px; margin-bottom:6px;'>
+                    <div style='font-weight:700; color:#fff;'>⚾ {away} @ {home}</div>
+                    <div style='display:flex; gap:20px; margin-top:6px; font-size:0.82rem;'>
+                        <div><span style='color:#888;'>Away SP:</span> <span style='color:#ff8800;'>{away_p}</span></div>
+                        <div><span style='color:#888;'>Home SP:</span> <span style='color:#ff8800;'>{home_p}</span></div>
+                    </div>
+                    <div style='margin-top:8px; font-size:0.78rem; color:#ffaa00;'>
+                        💡 Boost a SP if they're facing a weak lineup. Boost a power hitter if facing a weak pitcher.
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+
 with tab_calc:
     st.markdown("""
     <div style='font-size:1.1rem; font-weight:800; color:#fff; margin-bottom:4px;'>⚡ Upgrade Calculator</div>
@@ -350,7 +645,6 @@ with tab_calc:
         player_search = st.text_input("Search player", placeholder="e.g. Scottie Scheffler", key="upgrade_search")
     with target_col:
         target_rarity = st.selectbox("Target", ["Legendary", "Mystic", "Iconic"], key="upgrade_target")
-
     if player_search:
         suggestions = get_player_suggestions(player_search)
         if not suggestions:

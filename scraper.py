@@ -39,36 +39,87 @@ RAX_EARNINGS = {
     "Mystic": 37500, "Iconic": 999999
 }
 
-# Top golf players to search for
 GOLF_PLAYERS = [
-    "Scottie Scheffler", "Rory McIlroy", "Jon Rahm", "Xander Schauffele",
-    "Collin Morikawa", "Viktor Hovland", "Patrick Cantlay", "Tony Finau",
-    "Justin Thomas", "Jordan Spieth", "Dustin Johnson", "Brooks Koepka",
-    "Bryson DeChambeau", "Tommy Fleetwood", "Shane Lowry", "Matt Fitzpatrick",
-    "Hideki Matsuyama", "Max Homa", "Keegan Bradley", "Wyndham Clark",
-    "Sahith Theegala", "Ludvig Aberg", "Akshay Bhatia", "Si Woo Kim",
-    "Jake Knapp", "Sungjae Im", "Tom Kim", "Chris Kirk", "Adam Scott",
-    "Jason Day", "Rickie Fowler", "Billy Horschel", "Sepp Straka",
-    "Corey Conners", "Kurt Kitayama", "Harris English", "Denny McCarthy",
-    "Taylor Moore", "Eric Cole", "Davis Thompson", "Nick Taylor",
-    "Mackenzie Hughes", "Adam Hadwin", "Aaron Rai", "Thriston Lawrence",
-    "Christiaan Bezuidenhout", "Dean Burmester", "Rasmus Hojgaard",
-    "Nicolai Hojgaard", "Adrian Meronk", "Tyrrell Hatton", "Robert MacIntyre",
-    "Min Woo Lee", "Cam Davis", "Lucas Herbert", "Marc Leishman",
-    "Cameron Smith", "Jason Kokrak", "Kevin Na", "Harold Varner",
-    "Talor Gooch", "Patrick Reed", "Bubba Watson", "Webb Simpson",
-    "Zach Johnson", "Stewart Cink", "Kevin Kisner", "Brian Harman",
-    "Luke List", "Brendan Steele", "Scott Stallings", "Joel Dahmen",
-    "Beau Hossler", "Chesson Hadley", "Nate Lashley", "Ryan Armour",
-    "Chez Reavie", "Scott Brown", "Patton Kizzire", "Richy Werenski",
-    "Charley Hoffman", "Kevin Streelman", "Vaughn Taylor", "Jim Herman",
-    "Emiliano Grillo", "Sebastián Muñoz", "Camilo Villegas", "Roberto Díaz",
-    "Carlos Ortiz", "Abraham Ancer", "Jhonattan Vegas", "Mito Pereira",
-    "Joaquin Niemann", "Cristobal Del Solar", "Rafa Cabrera Bello",
-    "Adri Arnaus", "Jorge Campillo", "Pablo Larrazabal", "Nacho Elvira",
-    "Matthias Schwab", "Bernd Wiesberger", "Martin Kaymer", "Alex Noren",
-    "Henrik Stenson", "Ian Poulter", "Lee Westwood", "Paul Casey",
-    "Graeme McDowell", "Padraig Harrington", "Sergio Garcia"
+    "Scottie Scheffler","Rory McIlroy","Jon Rahm","Xander Schauffele","Collin Morikawa",
+    "Viktor Hovland","Patrick Cantlay","Tony Finau","Justin Thomas","Jordan Spieth",
+    "Dustin Johnson","Brooks Koepka","Bryson DeChambeau","Tommy Fleetwood","Shane Lowry",
+    "Matt Fitzpatrick","Hideki Matsuyama","Max Homa","Keegan Bradley","Wyndham Clark",
+    "Sahith Theegala","Ludvig Aberg","Akshay Bhatia","Si Woo Kim","Jake Knapp",
+    "Sungjae Im","Tom Kim","Chris Kirk","Adam Scott","Jason Day","Rickie Fowler",
+    "Billy Horschel","Sepp Straka","Corey Conners","Kurt Kitayama","Harris English",
+    "Denny McCarthy","Taylor Moore","Eric Cole","Davis Thompson","Nick Taylor",
+    "Mackenzie Hughes","Adam Hadwin","Aaron Rai","Thriston Lawrence","Dean Burmester",
+    "Rasmus Hojgaard","Nicolai Hojgaard","Adrian Meronk","Tyrrell Hatton","Robert MacIntyre",
+    "Min Woo Lee","Cam Davis","Lucas Herbert","Cameron Smith","Talor Gooch","Patrick Reed",
+    "Bubba Watson","Webb Simpson","Zach Johnson","Kevin Kisner","Brian Harman",
+    "Luke List","Brendan Steele","Joel Dahmen","Beau Hossler","Nate Lashley",
+    "Chez Reavie","Charley Hoffman","Kevin Streelman","Emiliano Grillo","Joaquin Niemann",
+    "Mito Pereira","Christiaan Bezuidenhout","Rafa Cabrera Bello","Alex Noren",
+    "Henrik Stenson","Ian Poulter","Lee Westwood","Paul Casey","Sergio Garcia",
+    "Padraig Harrington","Graeme McDowell","Martin Kaymer","Bernd Wiesberger",
+    "Matthias Schwab","Jorge Campillo","Pablo Larrazabal","Adri Arnaus",
+    "Pontus Nyholm","Max Greyserman","Chris Gotterup","Sahith Theegala",
+    "Austin Eckroat","Peter Malnati","Callum Tarren","Ben Griffin","Andrew Novak",
+    "Hayden Buckley","MJ Daffue","Greyson Sigg","Ryan Gerard","Carl Yuan",
+    "Pierceson Coody","Zac Blair","Martin Trainer","Hank Lebioda","Will Gordon",
+    "Trevor Cone","Vince Whaley","Kramer Hickok","Tyler Duncan","Scott Gutschewski",
+    "Xander Schauffele","Rory McIlroy","Scottie Scheffler","Jon Rahm","Viktor Hovland",
+    "Tommy Fleetwood","Shane Lowry","Tyrrell Hatton","Robert MacIntyre","Matt Wallace",
+    "Thorbjorn Olesen","Marcus Armitage","Richie Ramsay","Grant Forrest","Ewen Ferguson",
+    "Connor Syme","David Law","Calum Hill","Liam Johnston","Cormac Sharvin",
+]
+
+NBA_PLAYERS = [
+    "LeBron James","Stephen Curry","Kevin Durant","Giannis Antetokounmpo","Nikola Jokic",
+    "Luka Doncic","Joel Embiid","Jayson Tatum","Devin Booker","Anthony Davis",
+    "Kawhi Leonard","Paul George","Damian Lillard","Kyrie Irving","James Harden",
+    "Anthony Edwards","Ja Morant","Zion Williamson","Trae Young","Donovan Mitchell",
+    "Bam Adebayo","Rudy Gobert","Karl-Anthony Towns","Domantas Sabonis","De'Aaron Fox",
+    "Tyrese Haliburton","Shai Gilgeous-Alexander","Cade Cunningham","Evan Mobley","Scottie Barnes",
+    "Franz Wagner","Paolo Banchero","Jalen Brunson","Tyrese Maxey","Mikal Bridges",
+    "Jaylen Brown","Khris Middleton","Jrue Holiday","Brook Lopez","Bobby Portis",
+    "Draymond Green","Klay Thompson","Andrew Wiggins","Jordan Poole","Chris Paul",
+    "Russell Westbrook","John Wall","Bradley Beal","Kristaps Porzingis","Julius Randle",
+    "RJ Barrett","Immanuel Quickley","OG Anunoby","Pascal Siakam","Fred VanVleet",
+    "Scottie Barnes","Gary Trent Jr","Precious Achiuwa","Jarrett Allen","Darius Garland",
+    "Caris LeVert","Isaac Okoro","Dean Wade","Lamar Stevens","Robin Lopez",
+    "LaMelo Ball","Miles Bridges","Terry Rozier","Gordon Hayward","Mason Plumlee",
+    "Jalen McDaniels","Theo Maledon","James Bouknight","Kai Jones","JT Thor",
+    "Desmond Bane","Jaren Jackson Jr","Ja Morant","Steven Adams","Brandon Clarke",
+    "De'Anthony Melton","Ziaire Williams","Santi Aldama","John Konchar","Xavier Tillman",
+    "Deni Avdija","Kyle Kuzma","Bradley Beal","Monte Morris","Delon Wright",
+    "Corey Kispert","Isaiah Todd","Jordan Schakel","Devon Dotson","Cassius Winston",
+    "Austin Reaves","Lonnie Walker","Wenyen Gabriel","Damian Jones","Kendrick Nunn",
+    "Victor Wembanyama","Cooper Flagg","Amen Thompson","Ausar Thompson","Chet Holmgren",
+    "Jalen Williams","Josh Giddey","Luguentz Dort","Isaiah Joe","Kenrich Williams",
+    "Jamal Murray","Michael Porter Jr","Aaron Gordon","Bones Hyland","Vlatko Cancar",
+    "Jaylen Nowell","Naz Reid","Kyle Anderson","Taurean Prince","Jordan McLaughlin",
+    "Jalen Johnson","Trae Young","Dejounte Murray","Clint Capela","John Collins",
+    "Bogdan Bogdanovic","Kevin Huerter","Onyeka Okongwu","Danilo Gallinari","Lou Williams",
+]
+
+MLB_PLAYERS = [
+    "Shohei Ohtani","Aaron Judge","Mookie Betts","Freddie Freeman","Trea Turner",
+    "Fernando Tatis Jr","Juan Soto","Ronald Acuna Jr","Bryce Harper","Mike Trout",
+    "Yordan Alvarez","Jose Altuve","Alex Bregman","Kyle Tucker","Framber Valdez",
+    "Gerrit Cole","Jacob deGrom","Max Scherzer","Justin Verlander","Zack Wheeler",
+    "Brandon Woodruff","Corbin Burnes","Freddy Peralta","Josh Hader","Devin Williams",
+    "Paul Goldschmidt","Nolan Arenado","Tommy Edman","Miles Mikolas","Adam Wainwright",
+    "Yadier Molina","Harrison Bader","Dylan Carlson","Lars Nootbaar","Brendan Donovan",
+    "Pete Alonso","Francisco Lindor","Jeff McNeil","Starling Marte","Max Scherzer",
+    "Taijuan Walker","Chris Bassitt","Edwin Diaz","Trevor May","Seth Lugo",
+    "Julio Rodriguez","Ty France","Eugenio Suarez","Jesse Winker","Marco Gonzales",
+    "Logan Gilbert","Robbie Ray","George Kirby","Cal Raleigh","Jarred Kelenic",
+    "Vladimir Guerrero Jr","Bo Bichette","George Springer","Kevin Gausman","Alek Manoah",
+    "Jose Berrios","Lourdes Gurriel Jr","Teoscar Hernandez","Matt Chapman","Alejandro Kirk",
+    "Garrett Crochet","Dylan Cease","Lucas Giolito","Lance Lynn","Liam Hendriks",
+    "Tim Anderson","Yoan Moncada","Jose Abreu","Eloy Jimenez","Luis Robert",
+    "Yoshinobu Yamamoto","Gavin Stone","Bobby Miller","James Outman","Miguel Vargas",
+    "Walker Buehler","Clayton Kershaw","Tony Gonsolin","Julio Urias","Max Muncy",
+    "Will Smith","Austin Barnes","Cody Bellinger","Chris Taylor","Hanser Alberto",
+    "Paul Skenes","Ke'Bryan Hayes","Bryan Reynolds","Oneil Cruz","Manny Machado",
+    "Xander Bogaerts","Jake Cronenworth","Ha-Seong Kim","Joe Musgrove","Yu Darvish",
+    "Cristopher Sanchez","Aaron Nola","Ranger Suarez","Zack Wheeler","Nick Castellanos",
 ]
 
 
@@ -143,56 +194,54 @@ def fetch_steals(season=2026):
     return cards
 
 
-def fetch_golf_players(season=2026):
-    """Searches for 100+ golf players by name and fetches their market data."""
-    print(f"\nFetching golf players...")
-    golf_cards = []
+def fetch_players_by_name(player_list, sport_filter, season=2026):
+    """Searches for players by name and fetches their cheapest live listing."""
+    print(f"\nFetching {sport_filter.upper()} players ({len(player_list)} names)...")
+    cards = []
     seen_ids = set()
 
-    for name in GOLF_PLAYERS:
+    for name in player_list:
         try:
             data = call_api("get_player_suggestions", {"query": name.split()[0], "season": season})
-            suggestions = data.get("suggestions", [])
-            golf = [s for s in suggestions if s.get("sport", "").lower() == "golf"]
-            for player in golf:
+            suggestions = [s for s in data.get("suggestions", []) if s.get("sport","").lower() == sport_filter.lower()]
+            for player in suggestions:
                 eid = player.get("entityId")
                 if eid in seen_ids:
                     continue
                 seen_ids.add(eid)
-                # Get sales data for this player
                 sales = call_api("get_player_sales_by_entity", {"entityId": eid, "season": season})
                 summary = sales.get("summary", {})
-                p = summary.get("player", {})
+                p_info = summary.get("player", {})
                 listings = summary.get("listings", [])
                 live = [l for l in listings if not l.get("is_ended")]
                 if not live:
                     continue
-                # Get cheapest live listing
                 cheapest = min(live, key=lambda x: x.get("bid", 999999))
                 rarity_map = {3: "Rare", 4: "Epic", 5: "Legendary", 6: "Mystic", 7: "Iconic"}
                 rarity = rarity_map.get(cheapest.get("rarity"), "Rare")
                 price = cheapest.get("bid", 0)
-                rr = p.get("avg_rax_per_rating", 0)
+                rr = p_info.get("avg_rax_per_rating", 0) or 0
+                fair_value = round(rr * (cheapest.get("value") or 80)) if rr else 0
 
-                golf_cards.append({
+                cards.append({
                     "playerName": player.get("name", name),
-                    "sport": "golf",
+                    "sport": sport_filter.lower(),
                     "season": season,
                     "entityId": eid,
                     "rarityLabel": rarity,
                     "listingPrice": price,
                     "currentRr": rr,
                     "avgRr": rr,
-                    "fairValue": round(price * 1.2),
+                    "fairValue": fair_value,
                     "trendingScore": 50,
                     "valuationStatus": "unknown",
                 })
                 print(f"  {player.get('name', name):<30} {rarity:<10} {price:>6,} RAX")
-        except Exception as e:
+        except Exception:
             continue
 
-    print(f"\nTotal golf players found: {len(golf_cards)}")
-    return golf_cards
+    print(f"  Found {len(cards)} {sport_filter.upper()} players with live listings.")
+    return cards
 
 
 def save_players(cards):
@@ -270,9 +319,11 @@ def main():
     all_cards = []
     homepage = fetch_players(season)
     steals = fetch_steals(season)
-    golf = fetch_golf_players(season)
+    golf = fetch_players_by_name(GOLF_PLAYERS, "golf", season)
+    nba = fetch_players_by_name(NBA_PLAYERS, "nba", season)
+    mlb = fetch_players_by_name(MLB_PLAYERS, "mlb", season)
 
-    # Merge, deduplicate by listingId or playerName+rarity
+    # Merge homepage + steals by listingId
     seen = set()
     for c in homepage + steals:
         lid = c.get("listingId")
@@ -280,9 +331,9 @@ def main():
             seen.add(lid)
             all_cards.append(c)
 
-    # Add golf players (dedup by name+rarity)
+    # Add name-searched players, dedup by name+rarity+season
     existing_keys = {f"{c.get('playerName')}_{c.get('rarityLabel')}_{c.get('season')}" for c in all_cards}
-    for c in golf:
+    for c in golf + nba + mlb:
         key = f"{c.get('playerName')}_{c.get('rarityLabel')}_{c.get('season')}"
         if key not in existing_keys:
             existing_keys.add(key)
