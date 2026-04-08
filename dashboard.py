@@ -380,6 +380,37 @@ with tab_picks:
         except Exception:
             return []
 
+    @st.cache_data(ttl=3600)
+    def get_nba_scoring_leaders():
+        """Fetch current season scoring leaders from NBA Stats API."""
+        try:
+            resp = requests.get(
+                "https://stats.nba.com/stats/leagueleaders",
+                headers={"User-Agent": "Mozilla/5.0", "Referer": "https://www.nba.com/"},
+                params={"LeagueID": "00", "PerMode": "PerGame", "Scope": "S",
+                        "Season": "2025-26", "SeasonType": "Regular Season", "StatCategory": "PTS"},
+                timeout=10
+            )
+            data = resp.json()
+            hdrs = data["resultSet"]["headers"]
+            rows = data["resultSet"]["rowSet"]
+            players = []
+            for r in rows[:50]:
+                p = dict(zip(hdrs, r))
+                players.append({
+                    "name": p.get("PLAYER"),
+                    "team": p.get("TEAM"),
+                    "team_id": p.get("TEAM_ID"),
+                    "pts": p.get("PTS", 0),
+                    "ast": p.get("AST", 0),
+                    "reb": p.get("REB", 0),
+                    "fg3m": p.get("FG3M", 0),
+                    "rank": p.get("RANK"),
+                })
+            return players
+        except Exception:
+            return []
+
     @st.cache_data(ttl=1800)
     def get_mlb_games_today():
         from datetime import datetime
@@ -409,6 +440,15 @@ with tab_picks:
 
     if picks_sport == "NBA":
         games = get_nba_games_today()
+        leaders = get_nba_scoring_leaders()
+        # Build team -> top players map
+        team_players = {}
+        for p in leaders:
+            t = p["team"]
+            if t not in team_players:
+                team_players[t] = []
+            team_players[t].append(p)
+
         if not games:
             st.info("No NBA games today or API unavailable.")
         else:
@@ -416,14 +456,41 @@ with tab_picks:
             for g in games:
                 home = g["home_team"]["full_name"]
                 away = g["visitor_team"]["full_name"]
-                time_str = g.get("status", "")[:16].replace("T", " ").replace("Z", " UTC") if "T" in str(g.get("status","")) else g.get("status","")
+                home_abbr = g["home_team"]["abbreviation"]
+                away_abbr = g["visitor_team"]["abbreviation"]
+                time_str = g.get("status","")[:16].replace("T"," ").replace("Z"," UTC") if "T" in str(g.get("status","")) else g.get("status","")
+
+                # Get top scorers for each team
+                home_stars = team_players.get(home_abbr, [])[:3]
+                away_stars = team_players.get(away_abbr, [])[:3]
+
+                def player_row(p, is_underdog=False):
+                    tag = "⭐ POLL PICK" if is_underdog else ""
+                    return f"<div style='display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid #1a3a1a;'><span style='color:#fff;'>{p['name']} <span style='color:#ffaa00; font-size:0.75rem;'>{tag}</span></span><span style='color:#4a8b4a; font-size:0.82rem;'>{p['pts']} PPG · {p['reb']} REB · {p['ast']} AST</span></div>"
+
+                home_html = "".join([player_row(p, i==1) for i, p in enumerate(home_stars)]) if home_stars else "<div style='color:#555;'>No data</div>"
+                away_html = "".join([player_row(p, i==1) for i, p in enumerate(away_stars)]) if away_stars else "<div style='color:#555;'>No data</div>"
+
+                # Poll pick = #2 scorer on the better team (not the most obvious pick)
+                all_stars = home_stars + away_stars
+                poll_pick = all_stars[1] if len(all_stars) > 1 else (all_stars[0] if all_stars else None)
+                poll_html = f"<div style='margin-top:10px; padding:8px; background:#0a2a0a; border-radius:6px; font-size:0.85rem;'><span style='color:#ffaa00; font-weight:700;'>🎯 Poll Pick: </span><span style='color:#fff; font-weight:700;'>{poll_pick['name']}</span> <span style='color:#4a8b4a;'>({poll_pick['pts']} PPG) — not the #1 pick, earns more karma if correct</span></div>" if poll_pick else ""
+
                 st.markdown(f"""
-                <div style='background:#0d1a0d; border:1px solid #1a3a1a; border-radius:10px; padding:14px; margin-bottom:8px;'>
+                <div style='background:#0d1a0d; border:1px solid #1a3a1a; border-radius:10px; padding:14px; margin-bottom:10px;'>
                     <div style='font-weight:700; color:#fff; font-size:1rem;'>🏀 {away} @ {home}</div>
-                    <div style='color:#4a8b4a; font-size:0.8rem; margin-top:4px;'>🕐 {time_str}</div>
-                    <div style='margin-top:10px; padding:8px; background:#0a1a0a; border-radius:6px; font-size:0.8rem; color:#ffaa00;'>
-                        💡 For the player poll: pick a star player from the favored team who is likely to score 25+ pts but may not be the most popular pick (e.g. not LeBron/Curry — try their teammate).
+                    <div style='color:#4a8b4a; font-size:0.8rem; margin-top:2px;'>🕐 {time_str}</div>
+                    <div style='display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:10px;'>
+                        <div>
+                            <div style='color:#888; font-size:0.75rem; margin-bottom:4px;'>{away} TOP SCORERS</div>
+                            {away_html}
+                        </div>
+                        <div>
+                            <div style='color:#888; font-size:0.75rem; margin-bottom:4px;'>{home} TOP SCORERS</div>
+                            {home_html}
+                        </div>
                     </div>
+                    {poll_html}
                 </div>
                 """, unsafe_allow_html=True)
 
