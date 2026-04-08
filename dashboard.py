@@ -213,7 +213,8 @@ def render_players(data, tab_key="default"):
     if search:
         data = data[data['name'].str.contains(search, case=False, na=False)]
 
-    sort_map = {"Value Rating": "deal_score", "Buy Price": "buy_price", "Flip Profit": "flip_profit"}    sc = sort_map.get(sort_by, "deal_score")
+    sort_map = {"Value Rating": "deal_score", "Buy Price": "buy_price", "Flip Profit": "flip_profit"}
+    sc = sort_map.get(sort_by, "deal_score")
     if sc in data.columns:
         data = data.sort_values(sc, ascending=False, na_position='last')
 
