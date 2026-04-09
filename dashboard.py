@@ -78,8 +78,7 @@ def calc_upgrade_cost(live_listings, target_rating, target_rarity_num):
     return total_cost, total_rating, passes_used
 
 # --- Page config ---
-st.set_page_config(page_title="RaxCartel", page_icon="⛳", layout="wide")
-
+st.set_page_config(page_title="RaxGuide", page_icon="⛳", layout="wide")
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
@@ -113,7 +112,7 @@ div[data-testid="stDataFrame"] { border-radius: 12px; overflow: hidden; }
 st.markdown("""
 <div style='text-align:center; padding: 30px 0 10px 0;'>
     <div style='font-size:3.5rem; font-weight:900; background: linear-gradient(135deg, #00ff88, #2d8b2d, #00cc44);
-    -webkit-background-clip:text; -webkit-text-fill-color:transparent;'>⛳ RaxCartel</div>
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent;'>⛳ RaxGuide</div>
     <div style='color:#4a8b4a; font-size:0.95rem; margin-top:4px; font-weight:600;'>Golf · NBA · MLB Profit Intelligence</div>
     <div style='color:#2a4a2a; font-size:0.75rem; margin-top:6px;'>Created by <span style='color:#00ff88;'>@lee</span></div>
 </div>
@@ -892,4 +891,4 @@ with tab_calc:
                         for l in sorted(live, key=lambda x: x.get("bid", 0))]
                 st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
 
-st.markdown("<br><div style='text-align:center; color:#1a3a1a; font-size:0.75rem;'>RaxCartel · Data from realapp.tools · Created by @lee</div>", unsafe_allow_html=True)
+st.markdown("<br><div style='text-align:center; color:#1a3a1a; font-size:0.75rem;'>RaxGuide · Data from realapp.tools · Created by @lee</div>", unsafe_allow_html=True)
