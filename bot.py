@@ -11,7 +11,8 @@ from datetime import datetime, timezone
 # --- Config from environment variables ---
 REAL_USERNAME = os.environ.get("REAL_USERNAME", "lee")
 REAL_PASSWORD = os.environ.get("REAL_PASSWORD", "")
-GROUP_URL = "https://www.realapp.com/z2OcNFpFBkq"
+GROUP_URL = "https://www.realsports.io/groups/z2OcNFpFBkq"
+LOGIN_URL = "https://www.realsports.io/login"
 
 # --- Player slug lookup (realapp.com/[slug]/2026) ---
 # Add more players here as you find their links
@@ -155,29 +156,32 @@ async def post_to_group(message):
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
         context = await browser.new_context(
-            user_agent="Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15"
+            user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            viewport={"width": 1280, "height": 800}
         )
         page = await context.new_page()
 
+        print("Navigating to web app login...")
+        await page.goto(LOGIN_URL, wait_until="networkidle", timeout=30000)
+        await page.wait_for_timeout(5000)
+        await page.screenshot(path="debug_1_login.png")
+        print(f"Login page URL: {page.url}")
+
+        # Log in
+        await page.fill('input[placeholder*="username"], input[placeholder*="email"], input[name="login"], input[type="text"]', REAL_USERNAME)
+        await page.fill('input[type="password"]', REAL_PASSWORD)
+        await page.screenshot(path="debug_2_filled.png")
+        await page.click('button[type="submit"], button:has-text("Log in"), button:has-text("Sign in")')
+        await page.wait_for_load_state("networkidle", timeout=15000)
+        await page.wait_for_timeout(5000)
+        await page.screenshot(path="debug_3_after_login.png")
+        print(f"After login URL: {page.url}")
+
+        # Navigate to group
         print("Navigating to group...")
         await page.goto(GROUP_URL, wait_until="networkidle", timeout=30000)
-        await page.screenshot(path="debug_1_group.png")
-
-        # Check if we need to log in
-        if "login" in page.url.lower() or await page.query_selector('input[type="password"]'):
-            print("Logging in...")
-            # Fill login form
-            await page.fill('input[placeholder*="username"], input[placeholder*="email"], input[name="login"]', REAL_USERNAME)
-            await page.fill('input[type="password"]', REAL_PASSWORD)
-            await page.screenshot(path="debug_2_login.png")
-            await page.click('button[type="submit"], button:has-text("Log in"), button:has-text("Sign in")')
-            await page.wait_for_load_state("networkidle", timeout=15000)
-            await page.screenshot(path="debug_3_after_login.png")
-            print(f"After login URL: {page.url}")
-
-            # Navigate to group after login
-            await page.goto(GROUP_URL, wait_until="networkidle", timeout=30000)
-            await page.screenshot(path="debug_4_group_after_login.png")
+        await page.wait_for_timeout(8000)
+        await page.screenshot(path="debug_4_group.png")
 
         print(f"Current URL: {page.url}")
 
