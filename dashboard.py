@@ -92,21 +92,15 @@ def get_nba_stats():
 @st.cache_data(ttl=1800)
 def get_nba_games():
     try:
-        today = datetime.now().strftime("%Y-%m-%d")
-        r = requests.get("https://api.balldontlie.io/v1/games",
-            headers={"Authorization":"b6d8fdb5-19e6-42ec-8cf2-90ff63cce84b"},
-            params={"dates[]":today,"per_page":20},timeout=8)
-        return r.json().get("data",[])
+        r = requests.get("http://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard", timeout=8)
+        return r.json().get("events", [])
     except: return []
 
 @st.cache_data(ttl=1800)
 def get_mlb_games():
     try:
-        today = datetime.now().strftime("%Y-%m-%d")
-        r = requests.get("https://statsapi.mlb.com/api/v1/schedule",
-            params={"sportId":1,"date":today,"hydrate":"probablePitcher,team"},timeout=8)
-        dates = r.json().get("dates",[])
-        return dates[0].get("games",[]) if dates else []
+        r = requests.get("http://site.api.espn.com/apis/site/v2/sports/baseball/mlb/scoreboard", timeout=8)
+        return r.json().get("events", [])
     except: return []
 
 # --- Tabs ---
@@ -194,8 +188,8 @@ with tab_nba:
     games = get_nba_games()
     playing_teams = set()
     for g in games:
-        playing_teams.add(g["home_team"]["abbreviation"])
-        playing_teams.add(g["visitor_team"]["abbreviation"])
+        for comp in g.get("competitions",[{}])[0].get("competitors",[]):
+            playing_teams.add(comp.get("team",{}).get("abbreviation",""))
 
     with col2:
         st.markdown(f"""
@@ -215,6 +209,73 @@ with tab_nba:
         </div>
         """, unsafe_allow_html=True)
 
+    # Show today's games with leaders and odds
+    if games:
+        st.markdown("<div style='font-weight:700; color:#fff; margin-bottom:8px;'>Today's Games</div>", unsafe_allow_html=True)
+        for event in games:
+            comp = event["competitions"][0]
+            teams = comp["competitors"]
+            home = next((t for t in teams if t["homeAway"]=="home"), teams[0])
+            away = next((t for t in teams if t["homeAway"]=="away"), teams[1])
+            home_name = home["team"]["displayName"]
+            away_name = away["team"]["displayName"]
+            odds = comp.get("odds",[{}])[0]
+            spread = odds.get("details","") 
+            ou = odds.get("overUnder","")
+            status = comp.get("status",{}).get("type",{}).get("shortDetail","")
+
+            # Get top scorer for each team
+            def get_leader(team_data, stat_name):
+                for l in team_data.get("leaders",[]):
+                    if stat_name.lower() in l.get("name","").lower():
+                        leaders = l.get("leaders",[])
+                        if leaders:
+                            p = leaders[0]
+                            return p.get("athlete",{}).get("fullName",""), p.get("displayValue","")
+                return "", ""
+
+            home_scorer, home_pts = get_leader(home, "points")
+            away_scorer, away_pts = get_leader(away, "points")
+
+            # Projected RAX for top scorers
+            stat_map2 = {"pts":"PTS","3pt":"FG3M","ast":"AST","reb":"REB"}
+            sk = stat_map2[nba_stat]
+            home_stat_val = 0
+            away_stat_val = 0
+            for p in players:
+                if home_scorer and p.get("PLAYER","").lower() == home_scorer.lower():
+                    home_stat_val = p.get(sk, 0) or 0
+                if away_scorer and p.get("PLAYER","").lower() == away_scorer.lower():
+                    away_stat_val = p.get(sk, 0) or 0
+
+            home_rax = round(home_stat_val * rax_per * nba_mult, 1)
+            away_rax = round(away_stat_val * rax_per * nba_mult, 1)
+
+            st.markdown(f"""
+            <div class='card'>
+                <div style='display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;'>
+                    <div style='font-weight:700; color:#fff;'>🏀 {away_name} @ {home_name}</div>
+                    <div style='color:#888; font-size:0.78rem;'>{status}</div>
+                </div>
+                {"<div style='color:#ffaa00; font-size:0.78rem; margin-bottom:8px;'>Spread: " + spread + " &nbsp;·&nbsp; O/U: " + str(ou) + "</div>" if spread else ""}
+                <div style='display:grid; grid-template-columns:1fr 1fr; gap:8px;'>
+                    <div style='background:#0a1a0a; border-radius:8px; padding:10px;'>
+                        <div style='color:#888; font-size:0.72rem;'>AWAY TOP SCORER</div>
+                        <div style='color:#fff; font-weight:700; margin-top:2px;'>{away_scorer or "—"}</div>
+                        <div style='color:#4a8b4a; font-size:0.78rem;'>{away_pts} PPG season avg</div>
+                        <div style='color:#00ccff; font-weight:700; margin-top:4px;'>{away_rax} RAX proj</div>
+                    </div>
+                    <div style='background:#0a1a0a; border-radius:8px; padding:10px;'>
+                        <div style='color:#888; font-size:0.72rem;'>HOME TOP SCORER</div>
+                        <div style='color:#fff; font-weight:700; margin-top:2px;'>{home_scorer or "—"}</div>
+                        <div style='color:#4a8b4a; font-size:0.78rem;'>{home_pts} PPG season avg</div>
+                        <div style='color:#00ccff; font-weight:700; margin-top:4px;'>{home_rax} RAX proj</div>
+                    </div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+
+    st.markdown("<div style='font-weight:700; color:#fff; margin:16px 0 8px;'>All Players — Boost Rankings</div>", unsafe_allow_html=True)
     rows = []
     for p in players:
         stat_val = p.get(stat_key, 0) or 0
@@ -222,25 +283,20 @@ with tab_nba:
         playing = p.get("TEAM") in playing_teams
         rows.append({"name": p.get("PLAYER"), "team": p.get("TEAM"), "stat": stat_val, "rax": proj_rax, "playing": playing})
 
-    rows.sort(key=lambda x: x["rax"], reverse=True)
+    rows.sort(key=lambda x: (x["playing"], x["rax"]), reverse=True)
 
     shown = 0
     for r in rows:
-        if not r["playing"] and shown < 5:
-            pass
-        if shown >= 20:
-            break
+        if shown >= 20: break
         verdict = "✅ BOOST" if r["rax"] > 40 else ("⚠️ MAYBE" if r["rax"] > 20 else "❌ SKIP")
         vc = "#00ff88" if "BOOST" in verdict else ("#ffaa00" if "MAYBE" in verdict else "#444")
         card_cls = "card card-green" if "BOOST" in verdict else ("card card-yellow" if "MAYBE" in verdict else "card card-red")
-        playing_tag = f"<span style='color:#00ff88; font-size:0.72rem;'>● PLAYING TODAY</span>" if r["playing"] else "<span style='color:#555; font-size:0.72rem;'>○ not playing</span>"
+        playing_tag = "<span style='color:#00ff88; font-size:0.72rem;'>● PLAYING TODAY</span>" if r["playing"] else "<span style='color:#555; font-size:0.72rem;'>○ not playing</span>"
         st.markdown(f"""
         <div class='{card_cls}' style='display:flex; justify-content:space-between; align-items:center;'>
             <div>
                 <div style='font-weight:700; color:#fff; font-size:0.95rem;'>🏀 {r["name"]} <span style='color:#888; font-size:0.8rem;'>({r["team"]})</span></div>
-                <div style='color:#888; font-size:0.78rem; margin-top:3px;'>
-                    {r["stat"]:.1f} {nba_stat}/game &nbsp;·&nbsp; {playing_tag}
-                </div>
+                <div style='color:#888; font-size:0.78rem; margin-top:3px;'>{r["stat"]:.1f} {nba_stat}/game &nbsp;·&nbsp; {playing_tag}</div>
             </div>
             <div style='text-align:right;'>
                 <div style='font-size:1.3rem; font-weight:900; color:#00ccff;'>{r["rax"]} RAX/game</div>
@@ -285,45 +341,69 @@ with tab_mlb:
     if not games:
         st.info("No MLB games today.")
     else:
-        # SP avg ~6 K/game, HR hitters avg ~0.15 HR/game
-        sp_avg_k = 6.0
-        hr_avg = 0.15
-        for g in games:
-            away = g["teams"]["away"]["team"]["name"]
-            home = g["teams"]["home"]["team"]["name"]
-            away_p = g["teams"]["away"].get("probablePitcher", {}).get("fullName", "TBD")
-            home_p = g["teams"]["home"].get("probablePitcher", {}).get("fullName", "TBD")
-            game_time = g.get("gameDate","")[:16].replace("T"," ") + " UTC"
+        for event in games:
+            comp = event["competitions"][0]
+            teams = comp["competitors"]
+            home = next((t for t in teams if t["homeAway"]=="home"), teams[0])
+            away = next((t for t in teams if t["homeAway"]=="away"), teams[1])
+            home_name = home["team"]["displayName"]
+            away_name = away["team"]["displayName"]
+            odds = comp.get("odds",[{}])[0]
+            spread = odds.get("details","")
+            ou = odds.get("overUnder","")
+            status = comp.get("status",{}).get("type",{}).get("shortDetail","")
+
+            def get_mlb_leader(team_data, stat_name):
+                for l in team_data.get("leaders",[]):
+                    if stat_name.lower() in l.get("name","").lower():
+                        leaders = l.get("leaders",[])
+                        if leaders:
+                            p = leaders[0]
+                            return p.get("athlete",{}).get("fullName",""), p.get("displayValue","")
+                return "", ""
 
             if mlb_stat == "k":
-                away_rax = round(sp_avg_k * mlb_rax * mlb_mult, 1)
-                home_rax = round(sp_avg_k * mlb_rax * mlb_mult, 1)
-                away_verdict = "✅ BOOST SP" if away_rax > 40 else "⚠️ MAYBE"
-                home_verdict = "✅ BOOST SP" if home_rax > 40 else "⚠️ MAYBE"
-                away_detail = f"{sp_avg_k} K avg · {away_rax} RAX proj"
-                home_detail = f"{sp_avg_k} K avg · {home_rax} RAX proj"
+                away_player, away_val = get_mlb_leader(away, "strikeout")
+                home_player, home_val = get_mlb_leader(home, "strikeout")
+                stat_label = "K/game"
             else:
-                hr_rax = round(hr_avg * mlb_rax * mlb_mult, 1)
-                away_verdict = "⚠️ MAYBE"
-                home_verdict = "⚠️ MAYBE"
-                away_detail = f"~{hr_avg} HR/game · {hr_rax} RAX proj"
-                home_detail = f"~{hr_avg} HR/game · {hr_rax} RAX proj"
+                away_player, away_val = get_mlb_leader(away, "home")
+                home_player, home_val = get_mlb_leader(home, "home")
+                stat_label = "HR/game"
+
+            # Estimate RAX from display value
+            def parse_stat(val_str):
+                try: return float(val_str.split()[0].replace("-","0"))
+                except: return 0
+
+            away_rax = round(parse_stat(away_val) * mlb_rax * mlb_mult, 1)
+            home_rax = round(parse_stat(home_val) * mlb_rax * mlb_mult, 1)
+            away_verdict = "✅ BOOST" if away_rax > 40 else ("⚠️ MAYBE" if away_rax > 15 else "❌ SKIP")
+            home_verdict = "✅ BOOST" if home_rax > 40 else ("⚠️ MAYBE" if home_rax > 15 else "❌ SKIP")
+            av_c = "#00ff88" if "BOOST" in away_verdict else ("#ffaa00" if "MAYBE" in away_verdict else "#444")
+            hv_c = "#00ff88" if "BOOST" in home_verdict else ("#ffaa00" if "MAYBE" in home_verdict else "#444")
 
             st.markdown(f"""
             <div class='card'>
-                <div style='font-weight:700; color:#fff; margin-bottom:8px;'>⚾ {away} @ {home} <span style='color:#555; font-size:0.78rem;'>{game_time}</span></div>
-                <div style='display:grid; grid-template-columns:1fr 1fr; gap:10px;'>
+                <div style='display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;'>
+                    <div style='font-weight:700; color:#fff;'>⚾ {away_name} @ {home_name}</div>
+                    <div style='color:#888; font-size:0.78rem;'>{status}</div>
+                </div>
+                {"<div style='color:#ffaa00; font-size:0.78rem; margin-bottom:8px;'>Spread: " + str(spread) + " &nbsp;·&nbsp; O/U: " + str(ou) + "</div>" if spread else ""}
+                <div style='display:grid; grid-template-columns:1fr 1fr; gap:8px;'>
                     <div style='background:#0a1a0a; border-radius:8px; padding:10px;'>
-                        <div style='color:#888; font-size:0.72rem; margin-bottom:4px;'>AWAY SP</div>
-                        <div style='color:#fff; font-weight:700;'>{away_p}</div>
-                        <div style='color:#4a8b4a; font-size:0.78rem; margin-top:4px;'>{away_detail}</div>
-                        <div style='color:#00ff88; font-weight:700; margin-top:4px;'>{away_verdict}</div>
+                        <div style='color:#888; font-size:0.72rem;'>AWAY</div>
+                        <div style='color:#fff; font-weight:700; margin-top:2px;'>{away_player or "—"}</div>
+                        <div style='color:#4a8b4a; font-size:0.78rem;'>{away_val}</div>
+                        <div style='color:#00ccff; font-weight:700; margin-top:4px;'>{away_rax} RAX proj</div>
+                        <div style='color:{av_c}; font-weight:700;'>{away_verdict}</div>
                     </div>
                     <div style='background:#0a1a0a; border-radius:8px; padding:10px;'>
-                        <div style='color:#888; font-size:0.72rem; margin-bottom:4px;'>HOME SP</div>
-                        <div style='color:#fff; font-weight:700;'>{home_p}</div>
-                        <div style='color:#4a8b4a; font-size:0.78rem; margin-top:4px;'>{home_detail}</div>
-                        <div style='color:#00ff88; font-weight:700; margin-top:4px;'>{home_verdict}</div>
+                        <div style='color:#888; font-size:0.72rem;'>HOME</div>
+                        <div style='color:#fff; font-weight:700; margin-top:2px;'>{home_player or "—"}</div>
+                        <div style='color:#4a8b4a; font-size:0.78rem;'>{home_val}</div>
+                        <div style='color:#00ccff; font-weight:700; margin-top:4px;'>{home_rax} RAX proj</div>
+                        <div style='color:{hv_c}; font-weight:700;'>{home_verdict}</div>
                     </div>
                 </div>
             </div>
