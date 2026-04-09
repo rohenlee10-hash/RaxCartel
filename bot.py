@@ -181,13 +181,20 @@ async def post_to_group(message):
 
         print(f"Current URL: {page.url}")
 
+        # Print all interactive elements to debug
+        inputs = await page.query_selector_all('input, textarea, div[contenteditable], [role="textbox"]')
+        print(f"Found {len(inputs)} input elements")
+        for i, el in enumerate(inputs[:10]):
+            tag = await el.evaluate("el => el.tagName")
+            placeholder = await el.evaluate("el => el.placeholder || el.getAttribute('aria-label') || el.getAttribute('data-placeholder') || ''")
+            print(f"  [{i}] {tag} placeholder='{placeholder}'")
+
         # Find the message input
         selectors = [
-            'textarea[placeholder*="message"]',
-            'textarea[placeholder*="comment"]',
-            'textarea[placeholder*="write"]',
+            '[role="textbox"]',
             'div[contenteditable="true"]',
-            'input[placeholder*="message"]',
+            'textarea',
+            'input[type="text"]',
         ]
 
         input_el = None
