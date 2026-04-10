@@ -257,27 +257,26 @@ with tab_nba:
 
             st.markdown(f"""
             <div class='card'>
-                <div style='display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;'>
-                    <div style='font-weight:700; color:#fff;'>🏀 {away_name} @ {home_name}</div>
-                    <div style='color:#888; font-size:0.78rem;'>{status}</div>
-                </div>
-                {"<div style='color:#ffaa00; font-size:0.78rem; margin-bottom:8px;'>Spread: " + spread + " &nbsp;·&nbsp; O/U: " + str(ou) + "</div>" if spread else ""}
-                <div style='display:grid; grid-template-columns:1fr 1fr; gap:8px;'>
-                    <div style='background:#0a1a0a; border-radius:8px; padding:10px;'>
-                        <div style='color:#888; font-size:0.72rem;'>AWAY TOP SCORER</div>
-                        <div style='color:#fff; font-weight:700; margin-top:2px;'>{away_scorer or "—"}</div>
-                        <div style='color:#4a8b4a; font-size:0.78rem;'>{away_pts} PPG season avg</div>
-                        <div style='color:#00ccff; font-weight:700; margin-top:4px;'>{away_rax} RAX proj</div>
-                    </div>
-                    <div style='background:#0a1a0a; border-radius:8px; padding:10px;'>
-                        <div style='color:#888; font-size:0.72rem;'>HOME TOP SCORER</div>
-                        <div style='color:#fff; font-weight:700; margin-top:2px;'>{home_scorer or "—"}</div>
-                        <div style='color:#4a8b4a; font-size:0.78rem;'>{home_pts} PPG season avg</div>
-                        <div style='color:#00ccff; font-weight:700; margin-top:4px;'>{home_rax} RAX proj</div>
-                    </div>
-                </div>
+                <div style='font-weight:700; color:#fff;'>🏀 {away_name} @ {home_name}</div>
+                <div style='color:#888; font-size:0.78rem; margin-top:2px;'>{status}</div>
+                {"<div style='color:#ffaa00; font-size:0.78rem; margin-top:4px;'>Spread: " + str(spread) + " · O/U: " + str(ou) + "</div>" if spread else ""}
             </div>
             """, unsafe_allow_html=True)
+            gc1, gc2 = st.columns(2)
+            with gc1:
+                st.markdown(f"""<div style='background:#0a1a0a; border-radius:8px; padding:10px;'>
+                    <div style='color:#888; font-size:0.72rem;'>AWAY TOP SCORER</div>
+                    <div style='color:#fff; font-weight:700; margin-top:2px;'>{away_scorer or "—"}</div>
+                    <div style='color:#4a8b4a; font-size:0.78rem;'>{away_pts} PPG season avg</div>
+                    <div style='color:#00ccff; font-weight:700; margin-top:4px;'>{away_rax} RAX proj</div>
+                </div>""", unsafe_allow_html=True)
+            with gc2:
+                st.markdown(f"""<div style='background:#0a1a0a; border-radius:8px; padding:10px;'>
+                    <div style='color:#888; font-size:0.72rem;'>HOME TOP SCORER</div>
+                    <div style='color:#fff; font-weight:700; margin-top:2px;'>{home_scorer or "—"}</div>
+                    <div style='color:#4a8b4a; font-size:0.78rem;'>{home_pts} PPG season avg</div>
+                    <div style='color:#00ccff; font-weight:700; margin-top:4px;'>{home_rax} RAX proj</div>
+                </div>""", unsafe_allow_html=True)
 
     st.markdown("<div style='font-weight:700; color:#fff; margin:16px 0 8px;'>All Players — Boost Rankings</div>", unsafe_allow_html=True)
     rows = []
