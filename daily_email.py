@@ -83,21 +83,54 @@ def get_nba_picks():
 
 
 def get_mlb_picks():
+    """Get top 3 starting pitchers playing today ranked by projected K RAX."""
     try:
-        r = requests.get("http://site.api.espn.com/apis/site/v2/sports/baseball/mlb/scoreboard", timeout=8)
-        events = r.json().get("events", [])
+        # MLB Stats API has confirmed starters
+        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        r = requests.get("https://statsapi.mlb.com/api/v1/schedule",
+            params={"sportId": 1, "date": today, "hydrate": "probablePitcher,stats"},
+            timeout=8)
+        dates = r.json().get("dates", [])
+        games = dates[0].get("games", []) if dates else []
+
         pitchers = []
-        for event in events[:5]:
-            comp = event["competitions"][0]
-            for team in comp["competitors"]:
-                for l in team.get("leaders", []):
-                    if "strikeout" in l.get("name","").lower():
-                        leaders = l.get("leaders", [])
-                        if leaders:
-                            name = leaders[0].get("athlete",{}).get("fullName","")
-                            val = leaders[0].get("displayValue","")
-                            if name:
-                                pitchers.append({"name": name, "stat": val})
+        for g in games:
+            for side in ["away", "home"]:
+                p = g["teams"][side].get("probablePitcher", {})
+                if not p:
+                    continue
+                name = p.get("fullName", "")
+                pid = p.get("id")
+                if not name or not pid:
+                    continue
+
+                # Get season K stats
+                stats_resp = requests.get(
+                    f"https://statsapi.mlb.com/api/v1/people/{pid}/stats",
+                    params={"stats": "season", "season": 2025, "group": "pitching"},
+                    timeout=5
+                )
+                splits = stats_resp.json().get("stats", [{}])[0].get("splits", [])
+                k_per_9 = 0.0
+                innings = 0.0
+                if splits:
+                    s = splits[0].get("stat", {})
+                    k_per_9 = float(s.get("strikeoutsPer9Inn", 0) or 0)
+                    innings = float(s.get("inningsPitched", 0) or 0)
+
+                # Avg innings per start ~5.5, K rate from K/9
+                avg_k = round((k_per_9 / 9) * 5.5, 1)
+                rax = round(avg_k * 18 * 1.0, 0)  # Legendary K booster
+
+                pitchers.append({
+                    "name": name,
+                    "k_per_9": k_per_9,
+                    "avg_k": avg_k,
+                    "rax": int(rax),
+                    "innings": innings
+                })
+
+        pitchers.sort(key=lambda x: x["rax"], reverse=True)
         return pitchers[:3]
     except Exception as e:
         print(f"MLB error: {e}")
@@ -115,9 +148,9 @@ def build_plain_text(golf, nba, mlb, today):
         lines.append(f"  {p['name']} ({p['team']}) — {p['pts']} PPG · ~{p['rax']} RAX/game")
     if mlb:
         lines.append("")
-        lines.append("⚾ MLB (Legendary K booster)")
+        lines.append("⚾ MLB (Legendary K booster — today's starters)")
         for p in mlb:
-            lines.append(f"  {p['name']} — {p['stat']}")
+            lines.append(f"  {p['name']} — {p['k_per_9']:.1f} K/9 · ~{p['avg_k']} K/start · ~{p['rax']} RAX")
     lines += ["", "📊 Full stats: raxguide.onrender.com"]
     return "\n".join(lines)
 
@@ -133,7 +166,7 @@ def build_html(golf, nba, mlb, today):
 
     golf_rows = "".join([row("🐦", p["name"], f"{p['birdies']:.2f} birdies/rd", p["rax"]) for p in golf])
     nba_rows = "".join([row("🏀", p["name"], f"{p['pts']} PPG ({p['team']})", p["rax"]) for p in nba])
-    mlb_rows = "".join([row("⚾", p["name"], p["stat"], "varies") for p in mlb]) if mlb else ""
+    mlb_rows = "".join([row("⚾", p["name"], f"{p['k_per_9']:.1f} K/9 · ~{p['avg_k']} K/start", p["rax"]) for p in mlb]) if mlb else ""
 
     return f"""
     <html><body style='background:#060d06; color:#e0e0e0; font-family:Inter,sans-serif; padding:20px;'>
