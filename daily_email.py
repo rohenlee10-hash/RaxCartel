@@ -40,13 +40,16 @@ def get_golf_picks():
         picks = []
         for name in set(birdies) | set(eagles):
             b = birdies.get(name, 0)
-            e = eagles.get(name, 0) / 100
-            # Legendary booster: 18 RAX/birdie, 45 RAX/eagle, 2x major
-            rax = round((b * 18 + e * 18 * 45) * 2, 0)
-            picks.append({"name": name, "birdies": b, "eagle_pct": eagles.get(name, 0), "rax": int(rax)})
+            e = eagles.get(name, 0)
+            # Only include players with meaningful birdie rates (top players)
+            if b < 1.0:
+                continue
+            # RAX = birdies per round * 18 RAX * 2x major + eagle% * 18 holes * 45 RAX * 2x
+            rax = round((b * 18 + (e/100) * 18 * 45) * 2, 0)
+            picks.append({"name": name, "birdies": b, "eagle_pct": e, "rax": int(rax)})
 
         picks.sort(key=lambda x: x["rax"], reverse=True)
-        return picks[:5]
+        return picks[:3]
     except Exception as e:
         print(f"Golf error: {e}")
         return []
@@ -85,10 +88,9 @@ def get_nba_picks():
 def get_mlb_picks():
     """Get top 3 starting pitchers playing today ranked by projected K RAX."""
     try:
-        # MLB Stats API has confirmed starters
         today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         r = requests.get("https://statsapi.mlb.com/api/v1/schedule",
-            params={"sportId": 1, "date": today, "hydrate": "probablePitcher,stats"},
+            params={"sportId": 1, "date": today, "hydrate": "probablePitcher"},
             timeout=8)
         dates = r.json().get("dates", [])
         games = dates[0].get("games", []) if dates else []
@@ -104,31 +106,24 @@ def get_mlb_picks():
                 if not name or not pid:
                     continue
 
-                # Get season K stats
-                stats_resp = requests.get(
-                    f"https://statsapi.mlb.com/api/v1/people/{pid}/stats",
-                    params={"stats": "season", "season": 2025, "group": "pitching"},
-                    timeout=5
-                )
-                splits = stats_resp.json().get("stats", [{}])[0].get("splits", [])
-                k_per_9 = 0.0
-                innings = 0.0
-                if splits:
-                    s = splits[0].get("stat", {})
-                    k_per_9 = float(s.get("strikeoutsPer9Inn", 0) or 0)
-                    innings = float(s.get("inningsPitched", 0) or 0)
+                # Get season pitching stats
+                try:
+                    sr = requests.get(
+                        f"https://statsapi.mlb.com/api/v1/people/{pid}/stats",
+                        params={"stats": "season", "season": 2025, "group": "pitching"},
+                        timeout=5
+                    )
+                    splits = sr.json().get("stats", [{}])[0].get("splits", [])
+                    stat = splits[0].get("stat", {}) if splits else {}
+                    k9 = float(stat.get("strikeoutsPer9Inn", 0) or 0)
+                    ip = float(stat.get("inningsPitched", 0) or 0)
+                except Exception:
+                    k9, ip = 0.0, 0.0
 
-                # Avg innings per start ~5.5, K rate from K/9
-                avg_k = round((k_per_9 / 9) * 5.5, 1)
-                rax = round(avg_k * 18 * 1.0, 0)  # Legendary K booster
-
-                pitchers.append({
-                    "name": name,
-                    "k_per_9": k_per_9,
-                    "avg_k": avg_k,
-                    "rax": int(rax),
-                    "innings": innings
-                })
+                avg_k = round((k9 / 9) * 5.5, 1) if k9 else 0
+                rax = round(avg_k * 18, 0)  # Legendary K booster
+                pitchers.append({"name": name, "k_per_9": k9, "avg_k": avg_k, "rax": int(rax)})
+                print(f"  MLB: {name} K/9={k9} avg_k={avg_k} rax={rax}")
 
         pitchers.sort(key=lambda x: x["rax"], reverse=True)
         return pitchers[:3]
@@ -155,7 +150,28 @@ def build_plain_text(golf, nba, mlb, today):
     return "\n".join(lines)
 
 
+def build_copypaste(golf, nba, mlb, today):
+    """Short version ready to paste directly into the Real app group."""
+    lines = [f"⛳ Boost Picks — {today}", ""]
+    lines.append("GOLF (Legendary · 2x Major)")
+    for p in golf:
+        lines.append(f"🐦 {p['name']} ~{p['rax']} RAX")
+    lines.append("")
+    lines.append("🏀 NBA (Legendary pts)")
+    for p in nba:
+        lines.append(f"🏀 {p['name']} ({p['team']}) ~{p['rax']} RAX")
+    if mlb:
+        lines.append("")
+        lines.append("⚾ MLB (Legendary K)")
+        for p in mlb:
+            lines.append(f"⚾ {p['name']} ~{p['rax']} RAX")
+    lines += ["", "📊 raxguide.onrender.com"]
+    return "\n".join(lines)
+
+
 def build_html(golf, nba, mlb, today):
+    copypaste = build_copypaste(golf, nba, mlb, today).replace("\n", "<br>")
+
     def row(emoji, name, detail, rax):
         return f"""
         <tr>
@@ -174,6 +190,11 @@ def build_html(golf, nba, mlb, today):
             <h1 style='color:#00ff88; font-size:1.8rem;'>⛳ RaxGuide Boost Picks</h1>
             <p style='color:#888;'>{today}</p>
 
+            <div style='background:#0a2a0a; border:1px solid #00ff88; border-radius:8px; padding:16px; margin-bottom:24px;'>
+                <div style='color:#00ff88; font-weight:700; margin-bottom:8px; font-size:0.85rem;'>📋 COPY & PASTE FOR YOUR GROUP</div>
+                <div style='background:#060d06; border-radius:6px; padding:12px; font-family:monospace; font-size:0.85rem; color:#e0e0e0; line-height:1.8;'>{copypaste}</div>
+            </div>
+
             <h2 style='color:#fff; font-size:1rem; margin-top:24px;'>GOLF — Legendary Booster · 2x Major</h2>
             <table width='100%' style='border-collapse:collapse; background:#0d1a0d; border-radius:8px;'>
                 {golf_rows}
@@ -184,7 +205,7 @@ def build_html(golf, nba, mlb, today):
                 {nba_rows}
             </table>
 
-            {"<h2 style='color:#fff; font-size:1rem; margin-top:24px;'>⚾ MLB — Legendary K Booster</h2><table width='100%' style='border-collapse:collapse; background:#0d1a0d; border-radius:8px;'>" + mlb_rows + "</table>" if mlb else ""}
+            {"<h2 style='color:#fff; font-size:1rem; margin-top:24px;'>⚾ MLB — Legendary K Booster (Today's Starters)</h2><table width='100%' style='border-collapse:collapse; background:#0d1a0d; border-radius:8px;'>" + mlb_rows + "</table>" if mlb else ""}
 
             <p style='margin-top:24px; color:#555; font-size:0.8rem;'>
                 Full stats & rankings: <a href='https://raxguide.onrender.com' style='color:#00ff88;'>raxguide.onrender.com</a><br>
@@ -217,7 +238,6 @@ def main():
 
     plain = build_plain_text(golf, nba, mlb, today)
     html = build_html(golf, nba, mlb, today)
-
     print(plain)
 
     if not GMAIL or not PASSWORD:
