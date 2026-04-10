@@ -388,33 +388,6 @@ with tab_mlb:
                     <div style='color:{hv_c}; font-weight:700;'>{home_verdict}</div>
                 </div>""", unsafe_allow_html=True)
 
-            st.markdown(f"""
-            <div class='card'>
-                <div style='display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;'>
-                    <div style='font-weight:700; color:#fff;'>⚾ {away_name} @ {home_name}</div>
-                    <div style='color:#888; font-size:0.78rem;'>{status}</div>
-                </div>
-                {"<div style='color:#ffaa00; font-size:0.78rem; margin-bottom:8px;'>Spread: " + str(spread) + " &nbsp;·&nbsp; O/U: " + str(ou) + "</div>" if spread else ""}
-            </div>
-            """, unsafe_allow_html=True)
-            c1, c2 = st.columns(2)
-            with c1:
-                st.markdown(f"""<div style='background:#0a1a0a; border-radius:8px; padding:10px;'>
-                    <div style='color:#888; font-size:0.72rem;'>AWAY</div>
-                    <div style='color:#fff; font-weight:700; margin-top:2px;'>{away_player or "TBD"}</div>
-                    <div style='color:#4a8b4a; font-size:0.78rem;'>{away_val}</div>
-                    <div style='color:#00ccff; font-weight:700; margin-top:4px;'>{away_rax} RAX proj</div>
-                    <div style='color:{av_c}; font-weight:700;'>{away_verdict}</div>
-                </div>""", unsafe_allow_html=True)
-            with c2:
-                st.markdown(f"""<div style='background:#0a1a0a; border-radius:8px; padding:10px;'>
-                    <div style='color:#888; font-size:0.72rem;'>HOME</div>
-                    <div style='color:#fff; font-weight:700; margin-top:2px;'>{home_player or "TBD"}</div>
-                    <div style='color:#4a8b4a; font-size:0.78rem;'>{home_val}</div>
-                    <div style='color:#00ccff; font-weight:700; margin-top:4px;'>{home_rax} RAX proj</div>
-                    <div style='color:{hv_c}; font-weight:700;'>{home_verdict}</div>
-                </div>""", unsafe_allow_html=True)
-
 # ── PACK TIMING ──────────────────────────────────────────────────────
 with tab_packs:
     now_utc = datetime.now(timezone.utc)
