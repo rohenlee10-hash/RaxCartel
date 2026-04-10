@@ -106,8 +106,6 @@ def get_mlb_games():
         dates = r.json().get("dates", [])
         return dates[0].get("games", []) if dates else []
     except: return []
-        return r.json().get("events", [])
-    except: return []
 
 # --- Tabs ---
 tab_golf, tab_nba, tab_mlb, tab_packs = st.tabs(["⛳ Golf Boosts","🏀 NBA Boosts","⚾ MLB Boosts","📦 Pack Timing"])
